@@ -13,16 +13,24 @@ type Dir = {
   parent?: Dir;
 };
 
-export function day7Part1() {
-  let stack: Array<Dir> = [];
-
-  const root: Dir = {
-    id: "/",
+function createDir(id: string, parent?: Dir): Dir {
+  return {
+    id,
     dirs: [],
     files: [],
-    parent: undefined,
-    size: 0
+    parent,
+    size: 0,
   };
+}
+
+function createFile(id: string, size: number): File {
+  return { id, size };
+}
+
+const buildTree = (): Dir => {
+  let stack: Array<Dir> = [];
+
+  const root = createDir("/");
 
   const commands = input.split("$ ").map((lines) => lines.split("\n"));
 
@@ -34,13 +42,7 @@ export function day7Part1() {
     if (existing) {
       return existing;
     }
-    const newDir: Dir = {
-      id,
-      dirs: [],
-      files: [],
-      parent: current,
-      size: 0
-    };
+    const newDir = createDir(id, current);
 
     current.dirs.push(newDir);
     return newDir;
@@ -52,14 +54,12 @@ export function day7Part1() {
     if (existing) {
       return existing;
     }
-    const newFile: File = {
-      id,
-      size
-    };
+    const newFile = createFile(id, size);
 
     current.files.push(newFile);
 
     current.size = current.size ? current.size + size : size;
+    // Add the size to the current dir and its parents
     let p: Dir | undefined = current.parent;
     while (p) {
       p.size = p.size ? p.size + size : size;
@@ -95,7 +95,12 @@ export function day7Part1() {
     }
   }
 
-  // Walk the tree to find small dirs
+  return root;
+};
+
+export function day7Part1() {
+  const root = buildTree();
+
   const smallDirs = [];
   let s = [root];
 
@@ -113,93 +118,13 @@ export function day7Part1() {
 }
 
 export function day7Part2() {
-  let stack: Array<Dir> = [];
-
-  const root: Dir = {
-    id: "/",
-    dirs: [],
-    files: [],
-    parent: undefined,
-    size: 0
-  };
-
-  const commands = input.split("$ ").map((lines) => lines.split("\n"));
-
-  const currentDir = () => stack[stack.length - 1];
-
-  const getOrAddDir = (id: string): Dir => {
-    const current = currentDir();
-    const existing = current.dirs.find((child) => child.id === id);
-    if (existing) {
-      return existing;
-    }
-    const newDir: Dir = {
-      id,
-      dirs: [],
-      files: [],
-      parent: current,
-      size: 0
-    };
-
-    current.dirs.push(newDir);
-    return newDir;
-  };
-
-  const getOrAddFile = (id: string, size: number): File => {
-    const current = currentDir();
-    const existing = current.files.find((child) => child.id === id);
-    if (existing) {
-      return existing;
-    }
-    const newFile: File = {
-      id,
-      size
-    };
-
-    current.files.push(newFile);
-
-    current.size = current.size ? current.size + size : size;
-    let p: Dir | undefined = current.parent;
-    while (p) {
-      p.size = p.size ? p.size + size : size;
-      p = p.parent;
-    }
-
-    return newFile;
-  };
-
-  for (let [command, ...output] of commands) {
-    if (command) {
-      if (command.startsWith("cd ")) {
-        const path = command.split(" ")[1];
-        if (path === "..") {
-          stack.pop();
-        } else if (path === "/") {
-          stack = [root];
-        } else {
-          const dir = getOrAddDir(path);
-          stack.push(dir);
-        }
-      } else if (command === "ls") {
-        for (let item of output) {
-          const [typeOrSize, name] = item.split(" ");
-
-          if (typeOrSize === "dir") {
-            getOrAddDir(name);
-          } else if (typeOrSize) {
-            getOrAddFile(name, Number(typeOrSize));
-          }
-        }
-      }
-    }
-  }
+  const root = buildTree();
 
   const freeSpace = 70000000 - root.size!;
   const sizeToDelete = 30000000 - freeSpace;
   console.log(sizeToDelete);
 
-  // Walk the tree to find small dirs
-  const bigDirs = [];
+  let minMatchingDir: number = Infinity;
   let s = [root];
 
   while (s.length) {
@@ -207,12 +132,11 @@ export function day7Part2() {
     if (!current) {
       break;
     }
-    if (current.size! >= sizeToDelete) {
-      bigDirs.push(current);
+    if (current.size! >= sizeToDelete && current.size! < minMatchingDir) {
+      minMatchingDir = current.size!;
     }
     s.push(...(current?.dirs ?? []));
   }
-  console.log(bigDirs);
 
-  return Math.min(...bigDirs.map((d) => d.size!));
+  return minMatchingDir;
 }
